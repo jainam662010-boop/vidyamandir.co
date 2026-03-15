@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Subject — Vidya Mandir</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="nb"></div>
+<div class="page-layout">
+  <div id="sb"></div>
+  <main class="main-area" id="mainArea">
+    <div style="display:flex;align-items:center;justify-content:center;height:200px"><div class="spinner"></div></div>
+  </main>
+</div>
+<script src="js/app.js"></script>
+<script src="js/theme_todo.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const sid = App.getParam('id');
+  if (!sid) { location.href = 'dashboard.html'; return; }
+  await App.loadData();
+  const subj = App.getSubject(sid);
+  if (!subj) { location.href = 'dashboard.html'; return; }
+  document.title = `${subj.name} — Vidya Mandir`;
+  App.initPage(sid);
+  const p = App.getProgress();
+  const sp = p[sid] || {};
+  const done = sp.done || [];
+  const pct = App.getSubjPct(sid, subj);
+  const admData = JSON.parse(localStorage.getItem('vm_admin_data') || '{}');
+  const admPDFs = (admData.pdfs || []).filter(pdf => pdf.subject === sid && !pdf.chapter);
+  const admTopics = (admData.ncertTopics || []).filter(t => t.subject === sid && !t.chapter);
+
+  document.getElementById('mainArea').innerHTML = `
+    <div class="page-head au">
+      <div class="breadcrumb"><a href="dashboard.html">Dashboard</a><span class="sep">›</span><span>${subj.name}</span></div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="font-size:50px">${subj.icon}</div>
+        <div>
+          <h1>${subj.name} &nbsp;<span style="font-size:1.1rem;color:var(--t3);font-family:var(--font-d);font-style:italic">${subj.nameHi}</span></h1>
+          <div class="subtitle">${subj.description}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card au-1" style="max-width:800px;margin-bottom:20px">
+      <div class="card-top-rule"></div>
+      <div class="card-pad">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px;flex-wrap:wrap;gap:8px">
+          <span style="font-size:.86rem;font-weight:700;color:var(--t1)">Overall Progress</span>
+          <div style="display:flex;gap:7px">
+            <span class="chip chip-b">${done.length}/${subj.chapters.length} chapters</span>
+            <span class="chip chip-tl">${pct}% complete</span>
+          </div>
+        </div>
+        <div class="pbar pbar-lg"><div class="pfill" style="width:${pct}%"></div></div>
+      </div>
+    </div>
+
+    ${admPDFs.length ? `
+    <div style="max-width:800px;margin-bottom:18px">
+      <h3 style="font-family:var(--font-d);font-size:.97rem;color:var(--saffron-l);margin-bottom:10px">📁 Subject Resources</h3>
+      <div class="card"><div class="card-top-rule"></div>
+        <div class="card-pad">
+          ${admPDFs.map(pdf => `<div class="pdf-row" onclick="window.open('${pdf.url}','_blank')">
+            <span style="font-size:20px">📄</span>
+            <span style="flex:1;font-size:.84rem;font-weight:600;color:var(--t1)">${pdf.name}</span>
+            <span class="chip chip-tl">${pdf.type||'Notes'}</span>
+            <span style="font-size:.7rem;color:var(--t3)">${pdf.size||''}</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>` : ''}
+
+    ${admTopics.length ? `
+    <div style="max-width:800px;margin-bottom:18px">
+      <h3 style="font-family:var(--font-d);font-size:.97rem;color:var(--saffron-l);margin-bottom:10px">⭐ NCERT Important — ${subj.name}</h3>
+      <div class="topics-card"><div class="card-top-rule"></div>
+        ${admTopics.map((t, i) => `<div class="topic-row">
+          <div class="topic-n">${i+1}</div>
+          <div class="topic-text">${t.text} ${t.important ? '<span style="color:var(--saffron)">★</span>' : ''}</div>
+          ${t.marks ? `<div class="topic-marks">${t.marks}M</div>` : ''}
+        </div>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <div style="max-width:800px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px;flex-wrap:wrap;gap:8px">
+        <h2 style="font-family:var(--font-d);font-size:1.1rem;color:var(--saffron-l)">अध्याय &middot; Chapters</h2>
+        <span style="font-size:.75rem;color:var(--t3)">${subj.chapters.length} chapters in syllabus</span>
+      </div>
+      <div class="ch-list">
+        ${subj.chapters.map((ch, i) => {
+          const isDone = done.includes(ch.id);
+          const score = sp.scores?.[ch.id];
+          const chPDFs = (admData.pdfs || []).filter(pdf => pdf.chapter === ch.id).length;
+          const admChTopics = (admData.ncertTopics || []).filter(t => t.chapter === ch.id).length;
+          return `<a href="chapter.html?subject=${sid}&chapter=${ch.id}" class="ch-row au ${isDone ? 'done' : ''}" style="animation-delay:${i*55}ms">
+            <div class="ch-num">${isDone ? '✓' : String(i+1).padStart(2,'0')}</div>
+            <div class="ch-info">
+              <div class="ch-title">${ch.title}</div>
+              <div class="ch-metas">
+                <span>▶ ${ch.lessons.length} lesson${ch.lessons.length>1?'s':''}</span>
+                <span>⏱ ${ch.duration}</span>
+                <span>❓ ${ch.quiz.length} Qs</span>
+                <span>⭐ ${(ch.ncertTopics?.length||0) + admChTopics} topics</span>
+                ${chPDFs > 0 ? `<span style="color:var(--indigo-l)">📁 ${chPDFs} PDF${chPDFs>1?'s':''}</span>` : ''}
+                ${score ? `<span style="color:var(--saffron)">🏆 ${score.pct}%</span>` : ''}
+                ${isDone ? `<span style="color:var(--sage-l)">✅ Complete</span>` : ''}
+              </div>
+            </div>
+            <div class="ch-chevron">›</div>
+          </a>`;
+        }).join('')}
+      </div>
+    </div>`;
+});
+</script>
+<div class="page-watermark"></div>
+</body>
+</html>
